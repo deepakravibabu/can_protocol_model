@@ -52,4 +52,25 @@ inline void sc_trace(sc_core::sc_trace_file* tf, const CanDataFrame& f, const st
     sc_trace(tf, f.dlc, name + ".dlc");
 }
 
+/// @brief Reasons CanCore may refuse to generate/transmit a selected
+/// message. Exists so rejection is diagnosable (by a testbench, or
+/// eventually by software polling protocol status) rather than only
+/// observable as "no frame appeared on the bus".
+enum class CanRejectReason : std::uint8_t {
+    NONE = 0,          ///< Not rejected.
+    INIT_MODE,         ///< FDCAN_CCCR.INIT is active; no transmission permitted.
+    ID_OUT_OF_RANGE,   ///< id exceeds 11 bits (standard) or 29 bits (extended).
+    INVALID_DLC        ///< dlc exceeds the classic-CAN maximum of 8 this phase.
+};
+
+inline const char* toString(CanRejectReason reason) {
+    switch (reason) {
+    case CanRejectReason::NONE:            return "NONE";
+    case CanRejectReason::INIT_MODE:       return "INIT_MODE";
+    case CanRejectReason::ID_OUT_OF_RANGE: return "ID_OUT_OF_RANGE";
+    case CanRejectReason::INVALID_DLC:     return "INVALID_DLC";
+    default:                               return "UNKNOWN";
+    }
+}
+
 #endif // CAN_TYPES_H

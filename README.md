@@ -24,6 +24,42 @@ A **SystemC Transaction-Level Model (TLM)** of a **Classical CAN Controller**, i
 	- CAN data frame read and retrieve message by another node
 
 
+# Registers Modeled
+
+| Register | Description | Module |
+|----------|-------------|--------|
+| `CCCR` | Controller Configuration Register (`INIT`, `CCE`, `FDOE`, `BRSE`) with Bosch write-protection semantics | `config_registers.h` |
+| `TXBAR` | Tx Buffer Add Request Register (self-clearing write request) | `tx_handler.h` |
+| `TXBRP` | Tx Buffer Request Pending Register | `tx_handler.h` |
+
+
+
+## Execution Flow
+
+1. CPU configures the controller registers.
+2. CPU writes the message (payload, ID, RTR, DLC) into the Tx Buffer section of Message RAM.
+3. CPU writes TXBAR to request transmission.
+4. The Tx Handler scans the Tx Buffers, selects the highest-priority pending message, and sends to CAN Core.
+5. The Tx Handler retrieves a complete CAN message from Message RAM and forwards it to the CAN Core. 
+6. The CAN Core performs CAN protocol processing (SOF, arbitration, CRC, framing, serialization, ACK, EOF) and transmits the frame onto the CAN bus
+
+
+
+# Components
+
+| Module | Responsibility |
+|---------|----------------|
+| `can_types.h` | Shared protocol data structures (`CanDataFrame`, `CanRejectReason`, `RxFilterEntry`) |
+| `config_registers.h` | Models CPU-visible configuration registers and controller operating mode |
+| `message_ram.h` | Storage for Tx Buffers, Rx FIFO0 and Acceptance Filters. Contains no scheduling or filtering logic. |
+| `tx_handler.h` | Owns `TXBAR/TXBRP`, scans pending Tx buffers and selects the highest-priority message (lowest CAN ID). |
+| `can_core.h` | Validates the selected frame (controller mode, ID, DLC) and forwards it to the CAN bus. |
+| `can_bus.h` | Broadcast communication medium connecting all CAN controller instances. |
+| `rx_handler.h` | Performs acceptance filtering and stores accepted frames into Rx FIFO0. |
+| `i_protocol_config.h` | Interface exposing controller mode to `CanCore`. |
+| `i_tx_message_source.h` | Interface exposing the selected transmit frame to `CanCore`. |
+
+---
 
 
 ## Test Plan
@@ -55,27 +91,18 @@ A **SystemC Transaction-Level Model (TLM)** of a **Classical CAN Controller**, i
 - Broadcast reach all nodes
 - Payload integrity
 
-## Execution Flow
+---
 
-1. CPU configures the controller registers.
-2. CPU writes the message (payload, ID, RTR, DLC) into the Tx Buffer section of Message RAM.
-3. CPU writes TXBAR to request transmission.
-4. The Tx Handler scans the Tx Buffers, selects the highest-priority pending message, and sends to CAN Core.
-5. The Tx Handler retrieves a complete CAN message from Message RAM and forwards it to the CAN Core. 
-6. The CAN Core performs CAN protocol processing (SOF, arbitration, CRC, framing, serialization, ACK, EOF) and transmits the frame onto the CAN bus
+# Test Cases
 
+| Testbench | Coverage |
+|-----------|----------|
+| `tb_config_regs.cpp` | Register reset values, write-protection, INIT/CCE behavior |
+| `tb_message_ram.cpp` | Tx buffer storage, overwrite, boundary conditions, invalid indices |
+| `tb_tx_handler.cpp` | TXBAR/TXBRP behavior, internal arbitration, tie-breaking, rescan, pending requests |
+| `tb_can_core.cpp` | Controller mode validation, ID validation, DLC validation, extended IDs, zero-length payload |
+| `tb_rx_handler.cpp` | Acceptance filtering, Rx FIFO0 operation, FIFO overflow, FIFO ordering, IDE matching |
 
-
-## Components
-
-| Module | Responsibility |
-|---------|----------------|
-| **config_registers.h** | Models CPU-visible CAN controller configuration registers (currently CCCR). |
-| **can_types.h** | Defines common CAN data structures (`CanDataFrame`, `CanProtocolFrame`). |
-| **message_ram.h** | Stores Tx/Rx CAN messages and acceptance filters. |
-| **tx_handler.h** | Performs local Tx arbitration and manages TXBAR/TXBRP registers. |
-| **can_core.h** | Builds a complete CAN protocol frame (SOF, Arbitration, CRC, ACK, EOF, etc.). |
-| **can_bus.h** *(Planned)* | Models CAN bus communication and inter-node arbitration. |
 
 ---
 
@@ -87,12 +114,6 @@ A **SystemC Transaction-Level Model (TLM)** of a **Classical CAN Controller**, i
 | TXBAR | Tx Buffer Add Request Register |
 | TXBRP | Tx Buffer Request Pending Register |
 
-
-## Features
-
-- Register-level CPU interface
-- Dedicated Tx/Rx Buffers
-- `CanDataFrame` abstraction
 
 ---
 

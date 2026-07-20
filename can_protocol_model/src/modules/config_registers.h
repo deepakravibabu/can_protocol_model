@@ -3,6 +3,7 @@
 
 #include <cstdint>
 #include <systemc.h>
+#include "i_protocol_config.h"
 
 /// @brief Bit positions within FDCAN_CCCR (RM0433 56.5.6, offset
 /// 0x0018) that this model currently tracks. CCCR has other bits (ASM,
@@ -22,12 +23,22 @@ namespace CccrBit {
 ///   - FDOE and BRSE only take effect if, immediately before the
 ///     write, INIT and CCE were BOTH already 1.
 ///   - Clearing INIT auto-clears CCE (documented hardware side effect).
-class ConfigRegisters : public sc_core::sc_module {
+///
+/// Also implements IProtocolConfig, exported so CanCore's
+/// sc_port<IProtocolConfig> can bind directly to this module.
+class ConfigRegisters : public sc_core::sc_module, public IProtocolConfig {
 public:
     /// @brief Reset value (RM0433 56.5.6): INIT=1, everything else 0.
     static constexpr std::uint32_t kResetValue = 0x00000001U;
 
-    SC_CTOR(ConfigRegisters) : m_cccr(kResetValue) {}
+    sc_core::sc_export<IProtocolConfig> m_configExport;
+
+    explicit ConfigRegisters(const sc_core::sc_module_name& name)
+        : sc_core::sc_module(name),
+        m_configExport("configExport"),
+        m_cccr(kResetValue) {
+        m_configExport(*this);
+    }
 
     /// @brief Full 32-bit write to FDCAN_CCCR, gated by the protection
     /// rule described above.
@@ -66,8 +77,11 @@ public:
     // --- Read accessors -------------------------------------------------
     bool init() const { return bitSet(m_cccr, CccrBit::INIT); }
     bool cce() const { return bitSet(m_cccr, CccrBit::CCE); }
-    bool fdOperationEnabled() const { return bitSet(m_cccr, CccrBit::FDOE); }
-    bool bitRateSwitchEnabled() const { return bitSet(m_cccr, CccrBit::BRSE); }
+    bool fdOperationEnabled() const override { return bitSet(m_cccr, CccrBit::FDOE); }
+    bool bitRateSwitchEnabled() const override { return bitSet(m_cccr, CccrBit::BRSE); }
+
+    // --- IProtocolConfig -------------------------------------------------
+    bool initModeActive() const override { return init(); }
 
 private:
     std::uint32_t m_cccr;

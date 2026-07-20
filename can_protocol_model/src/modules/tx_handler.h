@@ -5,6 +5,7 @@
 #include <string>
 #include <systemc.h>
 #include "can_types.h"
+#include "i_tx_message_source.h"
 #include "message_ram.h"
 
 /// @brief Owns the FDCAN_TXBAR / FDCAN_TXBRP register pair (RM0433
@@ -21,16 +22,20 @@
 /// using data already sitting in Message RAM, before anything reaches
 /// the wire. The external half (bit-by-bit arbitration against other
 /// nodes, on the bus) is CAN Core's job, not modeled here.
-class TxHandler : public sc_core::sc_module {
+class TxHandler : public sc_core::sc_module, public ITxMessageSource {
 public:
     /// @brief Notified whenever the scan selects a new highest-priority
-    /// message. Whatever is downstream (CanCore, once it exists again)
-    /// reacts to this.
+    /// message. Whatever is downstream (CanCore) reacts to this.
     sc_core::sc_event m_selectionReadyEvent;
+
+    /// @brief Exported so CanCore's sc_port<ITxMessageSource> can bind
+    /// directly to this module.
+    sc_core::sc_export<ITxMessageSource> m_messageSourceExport;
 
     SC_HAS_PROCESS(TxHandler);
     explicit TxHandler(const sc_core::sc_module_name& name)
         : sc_core::sc_module(name),
+        m_messageSourceExport("messageSourceExport"),
         m_ram(nullptr),
         m_txbar(0U),
         m_txbrp(0U),
@@ -38,6 +43,7 @@ public:
         m_selectedIndex(0U),
         m_lastAccepted(false),
         m_lastCompletedIndex(0U) {
+        m_messageSourceExport(*this);
         SC_METHOD(scanProcess);
         sensitive << m_txbrpUpdatedEvent;
     }
@@ -112,26 +118,31 @@ public:
     }
 
     /// @brief True if the most recent scan has a winner selected.
-    bool hasSelectedMessage() const { return m_hasSelection; }
+    bool hasSelectedMessage() const override { return m_hasSelection; }
 
     /// @brief The winning message from the most recent scan. Only
     /// meaningful while hasSelectedMessage() is true.
-    CanDataFrame selectedMessage() const { return m_selectedMessage; }
+    CanDataFrame selectedMessage() const override { return m_selectedMessage; }
 
     /// @brief Which Tx buffer index won the most recent scan.
     unsigned selectedBufferIndex() const { return m_selectedIndex; }
 
+    /// @brief ITxMessageSource's event accessor - returns the same
+    /// m_selectionReadyEvent exposed as a public member above. Both
+    /// exist: the public member for direct use (as tb_tx_handler.cpp
+    /// does), this override for CanCore's sc_port<ITxMessageSource>
+    /// binding to go through.
+    const sc_core::sc_event& selectionReadyEvent() const override {
+        return m_selectionReadyEvent;
+    }
+
     /// @brief Called once the selected message has been handled
-    /// downstream (by CanCore, once it exists) - clears
-    /// FDCAN_TXBRP.TRPn for the selected buffer (RM0433 56.5.37: "The
-    /// bits are reset after a requested transmission has completed"),
-    /// and re-triggers a scan for whatever is pending next (RM0433
-    /// 56.4: "...or when a transmission has been started" - a
-    /// completion likewise re-triggers the scan in this model).
-    /// @param accepted  Recorded purely for diagnostics - no
-    /// TXBTO/TXBCF (transmission-occurred / cancel-finished) status is
-    /// modeled yet.
-    void reportTransmissionResult(bool accepted) {
+    /// downstream (by CanCore) - clears FDCAN_TXBRP.TRPn for the
+    /// selected buffer (RM0433 56.5.37: "The bits are reset after a
+    /// requested transmission has completed"), and re-triggers a scan
+    /// for whatever is pending next.
+    /// @param accepted  Recorded purely for diagnostics.
+    void reportTransmissionResult(bool accepted) override {
         m_txbrp &= ~(1U << m_selectedIndex);
         m_lastAccepted = accepted;
         m_lastCompletedIndex = m_selectedIndex;

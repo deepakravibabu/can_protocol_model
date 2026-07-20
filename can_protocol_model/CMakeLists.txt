@@ -9,7 +9,12 @@ add_executable (
 	"src/modules/message_ram.h" 
 	"src/modules/can_types.h" 
 	"src/modules/tx_handler.h" 
-	"test/tb_tx_handler.cpp"
+	"src/modules/i_protocol_config.h" 
+	"src/modules/i_tx_message_source.h" 
+	"src/modules/can_bus.h" 
+	"src/modules/can_core.h" 
+#	"test/tb_tx_handler.cpp"
+	"test/tb_can_core.cpp"
 )
 
 target_include_directories (can_protocol_model PRIVATE
