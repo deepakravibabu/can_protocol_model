@@ -14,7 +14,8 @@ add_executable (
 	"src/modules/can_bus.h" 
 	"src/modules/can_core.h" 
 #	"test/tb_tx_handler.cpp"
-	"test/tb_can_core.cpp"
+#	"test/tb_can_core.cpp"
+	"test/tb_tx_flow.cpp"
 )
 
 target_include_directories (can_protocol_model PRIVATE

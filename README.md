@@ -128,3 +128,69 @@ A **SystemC Transaction-Level Model (TLM)** of a **Classical CAN Controller**, i
 - CRC-15 implementation (placeholder only)
 - Error Frames / Overload Frames
 
+## Output
+
+<details>
+<summary><b>test for transmission flow</b></summary>
+
+```text
+$ ./tb_tx_flow
+
+        SystemC 3.0.2-Accellera --- Jul 14 2026 13:07:36
+        Copyright (c) 1996-2025 by all Contributors,
+        ALL RIGHTS RESERVED
+[PASS] case A: CCCR.INIT is 1 at reset (software has not initialized yet)
+
+Warning: CanCore: rejected message, reason=INIT_MODE
+In file: D:\Projects\sc\can_protocol_model\can_protocol_model\src\modules\can_core.h:126
+In process: core.evaluateProcess @ 0 s
+[PASS] case A: CanCore rejected the message (INIT still active)
+[PASS] case A: rejection reason is INIT_MODE
+[PASS] case A: nothing reached the bus
+[PASS] case A: TXBRP still clears for buffer 0 even on rejection (buffer is free again)
+[PASS] case A: CCCR.INIT cleared - controller now out of init mode
+
+Info: CanCore: transmitted ID=0x123 IDE=0 RTR=0 DLC=4 DATA=[de ad be ef]
+[PASS] case B: CanCore generated/transmitted one frame
+[PASS] case B: exactly one frame reached the bus
+[PASS] case B: bus frame matches exactly what the CPU wrote into the Tx buffer
+[PASS] case B: TXBRP cleared for buffer 0 after transmission
+
+Info: CanCore: transmitted ID=0x100 IDE=0 RTR=0 DLC=1 DATA=[2]
+
+Info: CanCore: transmitted ID=0x300 IDE=0 RTR=0 DLC=1 DATA=[5]
+[PASS] case C: both messages eventually generated (2 more since case B)
+[PASS] case C: both frames reached the bus
+[PASS] case C: buffer 2 (lower ID) transmitted BEFORE buffer 5, despite being requested together
+[PASS] case C: buffer 5 transmitted second, via the automatic rescan-on-completion
+
+Warning: CanCore: rejected message, reason=ID_OUT_OF_RANGE
+In file: D:\Projects\sc\can_protocol_model\can_protocol_model\src\modules\can_core.h:126
+In process: core.evaluateProcess @ 3 ns
+[PASS] case D: rejected end-to-end (1 more since case A)
+[PASS] case D: rejection reason is ID_OUT_OF_RANGE
+[PASS] case D: no new frame reached the bus
+[PASS] case D: buffer 10 freed up again despite rejection
+
+Warning: CanCore: rejected message, reason=INVALID_DLC
+In file: D:\Projects\sc\can_protocol_model\can_protocol_model\src\modules\can_core.h:126
+In process: core.evaluateProcess @ 4 ns
+[PASS] case E: rejected end-to-end (1 more since case D)
+[PASS] case E: rejection reason is INVALID_DLC
+[PASS] case E: still no new frame reached the bus
+
+Info: CanCore: transmitted ID=0x1fffffff IDE=1 RTR=0 DLC=2 DATA=[11 22]
+[PASS] case F: extended-ID message generated end-to-end
+[PASS] case F: frame reached the bus
+[PASS] case F: extended ID/IDE preserved through the full chain
+
+TEST RESULT: PASS
+
+Info: /OSCI/SystemC: Simulation stopped by user.
+
+```
+</details>
+
+<details>
+<summary><b>test for Config registers</b></summary>
+</details>
