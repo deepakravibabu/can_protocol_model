@@ -26,13 +26,25 @@ A **SystemC Transaction-Level Model (TLM)** of a **Classical CAN Controller**, i
 
 # Registers Modeled
 
-| Register | Description | Module |
+| Register |Bit fields| Description | Module |
 |----------|-------------|--------|
-| `CCCR` | Controller Configuration Register (`INIT`, `CCE`, `FDOE`, `BRSE`) with Bosch write-protection semantics | `config_registers.h` |
-| `TXBAR` | Tx Buffer Add Request Register (self-clearing write request) | `tx_handler.h` |
-| `TXBRP` | Tx Buffer Request Pending Register | `tx_handler.h` |
+| `CCCR` | | Controller Configuration Register (`INIT`, `CCE`, `FDOE`, `BRSE`) | `config_registers.h` |
+|			| `INIT` | [0:0] Initialization Mode | `config_registers.h` |
+|			| `CCE`	 | [1:1] Configuration change enable | `config_registers.h` |
+|			| `FDOE` | [8:8] FD operation enable	| `config_registers.h` |
+|			| `BRSE` | [9:9] Bit rate switching enable	| `config_registers.h` |
+| `std::array<CanDataFrame, 32> m_txBuffer{}` | |  TxBuffer memory inside message ram  | `message_ram.h` |
+| `TXBAR` | |  Tx Buffer Add Request Register (self-clearing write request) | `tx_handler.h` |
+| `TXBRP` | |  Tx Buffer Request Pending Register | `tx_handler.h` |
 
+# Input/ Output
 
+| Component | Input | Output | Process |Description |
+|----------|-------------|--------|
+|config_registers|cpu_write(`CCCR`)| - | - | directly accessed by CPU to configure controller registers |
+|message_ram|writeTxBuffer(`TxBufIdx`, `CanDataFrame`)| - | - | CanDataFrame stored in given index of Tx Buffer
+|tx_handler|void requestTransmit(unsigned index)|`selectionReadyEvent`| SC_METHOD(scanProcess) | request lowest index of Tx Buffer for transmission | 
+|can_core| `selectionReadyEvent` | `CanDataFrame` | SC_METHOD(evaluateProcess) `next_trigger(selectionReadyEvent)` | transmit the CanDataFrame |
 
 ## Execution Flow
 
@@ -102,18 +114,6 @@ A **SystemC Transaction-Level Model (TLM)** of a **Classical CAN Controller**, i
 | `tb_tx_handler.cpp` | TXBAR/TXBRP behavior, internal arbitration, tie-breaking, rescan, pending requests |
 | `tb_can_core.cpp` | Controller mode validation, ID validation, DLC validation, extended IDs, zero-length payload |
 | `tb_rx_handler.cpp` | Acceptance filtering, Rx FIFO0 operation, FIFO overflow, FIFO ordering, IDE matching |
-
-
----
-
-## Registers Modeled
-
-| Register | Description |
-|----------|-------------|
-| CCCR | Controller Configuration Register |
-| TXBAR | Tx Buffer Add Request Register |
-| TXBRP | Tx Buffer Request Pending Register |
-
 
 ---
 

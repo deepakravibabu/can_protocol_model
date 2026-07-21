@@ -37,8 +37,8 @@ public:
         : sc_core::sc_module(name),
         m_configExport("configExport"),
         m_cccr(kResetValue) {
-        m_configExport(*this);
-    }
+            m_configExport(*this);
+        }
 
     /// @brief Full 32-bit write to FDCAN_CCCR, gated by the protection
     /// rule described above.
