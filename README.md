@@ -24,27 +24,32 @@ A **SystemC Transaction-Level Model (TLM)** of a **Classical CAN Controller**, i
 	- CAN data frame read and retrieve message by another node
 
 
-# Registers Modeled
+## Registers Modeled
 
-| Register |Bit fields| Description | Module |
-|----------|-------------|--------|
-| `CCCR` | | Controller Configuration Register (`INIT`, `CCE`, `FDOE`, `BRSE`) | `config_registers.h` |
-|			| `INIT` | [0:0] Initialization Mode | `config_registers.h` |
-|			| `CCE`	 | [1:1] Configuration change enable | `config_registers.h` |
-|			| `FDOE` | [8:8] FD operation enable	| `config_registers.h` |
-|			| `BRSE` | [9:9] Bit rate switching enable	| `config_registers.h` |
-| `std::array<CanDataFrame, 32> m_txBuffer{}` | |  TxBuffer memory inside message ram  | `message_ram.h` |
-| `TXBAR` | |  Tx Buffer Add Request Register (self-clearing write request) | `tx_handler.h` |
-| `TXBRP` | |  Tx Buffer Request Pending Register | `tx_handler.h` |
+| Register | Bit Field | Bits | Description | Module |
+|----------|-----------|------|-------------|--------|
+| `CCCR` | – | – | Controller Configuration Register | `config_registers.h` |
+| | `INIT` | `[0]` | Initialization Mode | |
+| | `CCE` | `[1]` | Configuration Change Enable | |
+| | `FDOE` | `[8]` | FD Operation Enable | |
+| | `BRSE` | `[9]` | Bit Rate Switching Enable | |
+| `TXBAR` | – | – | Tx Buffer Add Request Register | `tx_handler.h` |
+| `TXBRP` | – | – | Tx Buffer Request Pending Register | `tx_handler.h` |
 
-# Input/ Output
+## Message RAM
 
-| Component | Input | Output | Process |Description |
-|----------|-------------|--------|
-|config_registers|cpu_write(`CCCR`)| - | - | directly accessed by CPU to configure controller registers |
-|message_ram|writeTxBuffer(`TxBufIdx`, `CanDataFrame`)| - | - | CanDataFrame stored in given index of Tx Buffer
-|tx_handler|void requestTransmit(unsigned index)|`selectionReadyEvent`| SC_METHOD(scanProcess) | request lowest index of Tx Buffer for transmission | 
-|can_core| `selectionReadyEvent` | `CanDataFrame` | SC_METHOD(evaluateProcess) `next_trigger(selectionReadyEvent)` | transmit the CanDataFrame |
+| Storage | Description | Module |
+|---------|-------------|--------|
+| `std::array<CanDataFrame,32> m_txBuffer` | Dedicated Tx Buffer memory | `message_ram.h` |
+
+## Module Interfaces
+
+| Module | Input | Output | Process | Description |
+|--------|-------|--------|---------|-------------|
+| `config_registers` | `cpu_write(CCCR)` | - | - | CPU configures controller registers. |
+| `message_ram` | `writeTxBuffer(TxBufIdx, CanDataFrame)` | `readTxBuffer()` | - | Stores and retrieves CAN frames from Tx Buffer memory. |
+| `tx_handler` | `requestTransmit(index)` | `selectionReadyEvent` | `SC_METHOD(scanProcess)` | Scans pending Tx buffers and selects the highest-priority frame. |
+| `can_core` | `selectionReadyEvent` | `CanDataFrame` | `SC_METHOD(evaluateProcess)` | Validates the selected frame and forwards it to the CAN bus. |
 
 ## Execution Flow
 
